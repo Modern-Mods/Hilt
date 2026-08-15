@@ -1,0 +1,29 @@
+modLoader="javafml"
+loaderVersion="${loader_range}"
+issueTrackerURL="https://github.com/ModernMods/Foundry-Library/issues"
+logoFile="FoundryLibrary.png"
+license="MIT"
+
+[[mods]]
+    modId="hilt"
+    version="${version}"
+    displayName="Foundry Library"
+    authors="Modern Mods"
+    description='''
+Shared code for Modern Mods and other NeoForge mods.
+    '''
+    displayURL="https://github.com/ModernMods/Foundry-Library"
+
+[[dependencies.hilt]]
+    modId="neoforge"
+    type="required"
+    versionRange="${neo_range}"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.hilt]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_range}"
+    ordering="NONE"
+    side="BOTH"
