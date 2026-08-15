@@ -32,40 +32,11 @@ repositories {
 
 group = 'modernmods.hilt'
 base {
-    archivesName = 'FoundryLibrary'
+    archivesName = 'Hilt'
 }
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
-// sets version to the Modern Mods version format
-task buildInfo {
-    try {
-        def cmd = "git rev-parse --short HEAD"
-        def proc = cmd.execute()
-        proc.waitFor()
-        if (proc.exitValue() == 0) {
-            ext.revision = proc.text.trim()
-        } else {
-            ext.revision = "GITBORK"
-        }
-    } catch (all) {
-        ext.revision = "gitgud"
-    }
-
-    if (System.getenv().BUILD_NUMBER != null) {
-        ext.buildNum = "${System.getenv().BUILD_NUMBER}"
-    } else {
-        ext.buildNum = "DEV.${project.buildInfo.revision}"
-    }
-}
-ext.artifact_version = 'NFG'
-if (System.getenv().ARTIFACT_VERSION == null) {
-    artifact_version = "${mod_version}.${project.buildInfo.buildNum}"
-}
-if (System.getenv().ARTIFACT_VERSION != null) {
-    artifact_version = "${system.getenv().ARTIFACT_VERSION}"
-}
-
-version = "${minecraft_version}-${artifact_version}"
+version = "${minecraft_version}-${mod_version}"
 println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}, Version: ${version}"
 
 sourceSets {
@@ -122,7 +93,7 @@ dependencies {
 
 tasks.named('processResources', ProcessResources).configure {
     var replaceProperties = [
-        'version': artifact_version,
+        'version': mod_version,
         'loader_range': loader_range,
         'minecraft_range': minecraft_range,
         'neo_range': neo_range
@@ -135,9 +106,10 @@ tasks.named('processResources', ProcessResources).configure {
 }
 
 tasks.named('jar', Jar).configure {
+    archiveFileName = "Hilt-${minecraft_version}-${mod_version}.jar"
     manifest {
         attributes([
-                "Specification-Title"     : "Foundry Library",
+                "Specification-Title"     : "Hilt",
                 "Specification-Vendor"    : "Modern Mods",
                 "Specification-Version"   : "1", // We are version 1 of ourselves
                 "Implementation-Title"    : project.name,

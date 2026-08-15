@@ -1,4 +1,4 @@
-![Hilt logo](https://i.imgur.com/cVRDvbL.png)  
+![Hilt logo](https://i.imgur.com/34pQrYN.png)  
 # Hilt  
 **Shared code for Modern Mods and other NeoForge mods**
 
