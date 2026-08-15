@@ -1,4 +1,4 @@
-![Hilt logo](src/main/resources/FoundryLibrary.png)  
+![Hilt logo](https://i.imgur.com/cVRDvbL.png)  
 # Hilt  
 **Shared code for Modern Mods and other NeoForge mods**
 
