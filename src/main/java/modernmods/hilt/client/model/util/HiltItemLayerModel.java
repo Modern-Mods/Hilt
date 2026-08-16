@@ -16,7 +16,6 @@ import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.resources.model.ModelState;
 import net.minecraft.client.resources.model.UnbakedModel;
 import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.client.NeoForgeRenderTypes;
 import net.neoforged.neoforge.client.RenderTypeGroup;
@@ -377,7 +376,9 @@ public class HiltItemLayerModel implements IUnbakedGeometry<HiltItemLayerModel> 
    * @param luminosity Extra light to add to the quad between 0 and 15
    */
   private static BakedQuad buildSideQuad(QuadBakingVertexConsumer builder, VertexConsumer consumer, Direction side, int color, TextureAtlasSprite sprite, int u, int v, int size, int luminosity) {
-    final float eps = 1e-2f;
+    // TextureAtlasSprite#getU/getV take normalized offsets. Keep side samples 0.1 pixels inside
+    // each source pixel to avoid sampling the transparent perimeter between atlas sprites.
+    final float eps = 0.1f;
     SpriteContents contents = sprite.contents();
     int width = contents.width();
     int height = contents.height();
@@ -404,19 +405,51 @@ public class HiltItemLayerModel implements IUnbakedGeometry<HiltItemLayerModel> 
         throw new IllegalArgumentException("can't handle z-oriented side");
     }
 
-    // for the side, Y axis's use of getOpposite is related to the swapping of V direction
-    float dx = side.getNormal().getX() * eps / width;
-    float dy = side.getNormal().getY() * eps / height;
-    float u0 = 16f * (x0 - dx);
-    float u1 = 16f * (x1 - dx);
-    float v0 = 16f * (1f - y0 - dy);
-    float v1 = 16f * (1f - y1 - dy);
-    return buildQuad(builder, consumer, (side.getAxis() == Axis.Y ? side.getOpposite() : side),
-      color, luminosity,
-      x0, y0, z0, sprite.getU(u0), sprite.getV(v0),
-      x1, y1, z0, sprite.getU(u1), sprite.getV(v1),
-      x1, y1, z1, sprite.getU(u1), sprite.getV(v1),
-      x0, y0, z1, sprite.getU(u0), sprite.getV(v0));
+    float textureU0, textureU1, textureV0, textureV1;
+    switch (side) {
+      case WEST:
+        textureU0 = (u + eps) / width;
+        textureU1 = (u + 1f - eps) / width;
+        textureV0 = (height - v - size + eps) / height;
+        textureV1 = (height - v - eps) / height;
+        return buildQuad(builder, consumer, Direction.WEST, color, luminosity,
+          x0, y0, z0, sprite.getU(textureU1), sprite.getV(textureV1),
+          x1, y1, z0, sprite.getU(textureU1), sprite.getV(textureV0),
+          x1, y1, z1, sprite.getU(textureU0), sprite.getV(textureV0),
+          x0, y0, z1, sprite.getU(textureU0), sprite.getV(textureV1));
+      case EAST:
+        textureU0 = (u - 1f + eps) / width;
+        textureU1 = (u - eps) / width;
+        textureV0 = (height - v - size + eps) / height;
+        textureV1 = (height - v - eps) / height;
+        return buildQuad(builder, consumer, Direction.EAST, color, luminosity,
+          x0, y0, z0, sprite.getU(textureU0), sprite.getV(textureV1),
+          x1, y1, z0, sprite.getU(textureU0), sprite.getV(textureV0),
+          x1, y1, z1, sprite.getU(textureU1), sprite.getV(textureV0),
+          x0, y0, z1, sprite.getU(textureU1), sprite.getV(textureV1));
+      case UP:
+        textureU0 = (u + eps) / width;
+        textureU1 = (u + size - eps) / width;
+        textureV0 = (height - v - 1f + eps) / height;
+        textureV1 = (height - v - eps) / height;
+        return buildQuad(builder, consumer, Direction.DOWN, color, luminosity,
+          x0, y0, z0, sprite.getU(textureU0), sprite.getV(textureV1),
+          x1, y1, z0, sprite.getU(textureU1), sprite.getV(textureV1),
+          x1, y1, z1, sprite.getU(textureU1), sprite.getV(textureV0),
+          x0, y0, z1, sprite.getU(textureU0), sprite.getV(textureV0));
+      case DOWN:
+        textureU0 = (u + eps) / width;
+        textureU1 = (u + size - eps) / width;
+        textureV0 = (height - v + eps) / height;
+        textureV1 = (height - v + 1f - eps) / height;
+        return buildQuad(builder, consumer, Direction.UP, color, luminosity,
+          x0, y0, z0, sprite.getU(textureU0), sprite.getV(textureV0),
+          x1, y1, z0, sprite.getU(textureU1), sprite.getV(textureV0),
+          x1, y1, z1, sprite.getU(textureU1), sprite.getV(textureV1),
+          x0, y0, z1, sprite.getU(textureU0), sprite.getV(textureV1));
+      default:
+        throw new IllegalArgumentException("can't handle z-oriented side");
+    }
   }
 
   /**
@@ -465,9 +498,11 @@ public class HiltItemLayerModel implements IUnbakedGeometry<HiltItemLayerModel> 
   /** Cloned from {@link ItemLayerModel}'s FaceData subclass */
   private static class FaceData {
     private final EnumMap<Direction,BitSet> data = new EnumMap<>(Direction.class);
+    private final int uMax;
     private final int vMax;
 
     FaceData(int uMax, int vMax) {
+      this.uMax = uMax;
       this.vMax = vMax;
 
       data.put(Direction.WEST, new BitSet(uMax * vMax));
@@ -485,7 +520,7 @@ public class HiltItemLayerModel implements IUnbakedGeometry<HiltItemLayerModel> 
     }
 
     private int getIndex(int u, int v) {
-      return v * vMax + u;
+      return v * uMax + u;
     }
   }
 
