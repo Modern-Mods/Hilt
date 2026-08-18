@@ -3,8 +3,8 @@ plugins {
     id 'eclipse'
     id 'idea'
     id 'maven-publish'
-    id 'net.neoforged.gradle.userdev' version '7.1.36'
-    id 'io.freefair.lombok' version '8.6'
+    id 'net.neoforged.moddev' version '2.0.142'
+    id 'io.freefair.lombok' version '8.14'
 }
 
 repositories {
@@ -24,19 +24,58 @@ repositories {
         name "yarn2mcp"
         url "https://maven.tterrag.com/"
     }
-    // If you have mod jar dependencies in ./libs, you can declare them as a repository like so:
-    // flatDir {
-    //     dir 'libs'
-    // }
 }
 
-group = 'modernmods.hilt'
+group = 'modernmods.mantle'
 base {
-    archivesName = 'Hilt'
+    archivesName = 'MantleRevived'
 }
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+// MC 26.1.2 ships as Java 25 bytecode (Java 25 preview features), so the toolchain must be JDK 25
+// to compile against it. ModDevGradle uses a standard JavaCompile task, which lets the lombok
+// annotation processor run under JDK 25 (unlike the NeoGradle userdev compile path).
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
-version = "${minecraft_version}-${mod_version}"
+// KNOWN BLOCKER: lombok does NOT run under JDK 25.0.3 in this environment (neither NeoGradle nor
+// ModDevGradle; stable 1.18.46 nor the edge build; with/without forked-compiler --add-opens). It
+// silently generates nothing, so ~all @Getter/@RequiredArgsConstructor/@Log4j2 code fails to
+// compile (cascading "cannot find symbol"/"argument lists differ"). MC 26.1.2 forces JDK 25 (Java
+// 25 preview features), so we can't drop to a JDK lombok supports. Unblock options for later:
+//   (a) delombok the source on JDK 21 and commit the plain-Java result (removes lombok), or
+//   (b) wait for a lombok release that supports JDK 25 GA.
+lombok {
+    version = '1.18.46'
+}
+
+// sets version to the slimeKnights version format
+task buildInfo {
+    try {
+        def cmd = "git rev-parse --short HEAD"
+        def proc = cmd.execute()
+        proc.waitFor()
+        if (proc.exitValue() == 0) {
+            ext.revision = proc.text.trim()
+        } else {
+            ext.revision = "GITBORK"
+        }
+    } catch (all) {
+        ext.revision = "gitgud"
+    }
+
+    if (System.getenv().BUILD_NUMBER != null) {
+        ext.buildNum = "${System.getenv().BUILD_NUMBER}"
+    } else {
+        ext.buildNum = "DEV.${project.buildInfo.revision}"
+    }
+}
+ext.artifact_version = 'NFG'
+if (System.getenv().ARTIFACT_VERSION == null) {
+    artifact_version = "${mod_version}.${project.buildInfo.buildNum}"
+}
+if (System.getenv().ARTIFACT_VERSION != null) {
+    artifact_version = "${system.getenv().ARTIFACT_VERSION}"
+}
+
+version = "${minecraft_version}-${artifact_version}"
 println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}, Version: ${version}"
 
 sourceSets {
@@ -49,40 +88,35 @@ sourceSets {
     }
 }
 
-minecraft.accessTransformers.file rootProject.file('src/main/resources/META-INF/accesstransformer.cfg')
+neoForge {
+    version = "${neo_version}"
+    // AccessTransformer at src/main/resources/META-INF/accesstransformer.cfg is auto-detected by MDG.
 
-runs {
-    // applies to all the run configs below
-    configureEach {
-        workingDirectory project.file('run')
-
-        // Recommended logging data for a userdev environment
-        systemProperty 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP,CORE'
-
-        // Recommended logging level for the console
-        systemProperty 'forge.logging.console.level', 'debug'
-
-        modSource project.sourceSets.main
+    runs {
+        configureEach {
+            gameDirectory = project.file('run')
+            systemProperty 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP,CORE'
+            systemProperty 'forge.logging.console.level', 'debug'
+        }
+        client {
+            client()
+        }
+        server {
+            server()
+            programArgument '--nogui'
+        }
+        // NeoForge 26.1.x split datagen into clientData/serverData; re-add once compiling.
     }
 
-    client {
-    }
-
-    server {
-        argument '--nogui'
-    }
-
-    data {
-        arguments.addAll '--mod', 'hilt', '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
+    mods {
+        mantle {
+            sourceSet sourceSets.main
+        }
     }
 }
 
-configurations {
-    deployerJars
-}
-               
 dependencies {
-    implementation "net.neoforged:neoforge:${neo_version}"
+    // NeoForge/Minecraft is provided by the moddev plugin via neoForge.version above.
 
     // compile against the JEI API but do not include it at runtime
     compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
@@ -93,7 +127,7 @@ dependencies {
 
 tasks.named('processResources', ProcessResources).configure {
     var replaceProperties = [
-        'version': mod_version,
+        'version': artifact_version,
         'loader_range': loader_range,
         'minecraft_range': minecraft_range,
         'neo_range': neo_range
@@ -106,15 +140,14 @@ tasks.named('processResources', ProcessResources).configure {
 }
 
 tasks.named('jar', Jar).configure {
-    archiveFileName = "Hilt-${minecraft_version}-${mod_version}.jar"
     manifest {
         attributes([
-                "Specification-Title"     : "Hilt",
-                "Specification-Vendor"    : "Modern Mods",
+                "Specification-Title"     : "Mantle",
+                "Specification-Vendor"    : "Slime Knights",
                 "Specification-Version"   : "1", // We are version 1 of ourselves
                 "Implementation-Title"    : project.name,
                 "Implementation-Version"  : "${version}",
-                "Implementation-Vendor"   : "Modern Mods",
+                "Implementation-Vendor"   : "Slime Knights",
                 "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
         ])
     }
@@ -153,4 +186,30 @@ publishing {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+    options.compilerArgs += ['-Xmaxerrs', '100000']
+    // JDK 23+ won't run path-discovered processors without explicit processing enabled.
+    options.compilerArgs += ['-proc:full']
+}
+
+// Lombok's annotation processor works on JDK 25.0.3 ONLY when the javac that runs it has the
+// jdk.compiler module opened (proven with raw `javac -J--add-opens ... -proc:full`). Gradle's
+// in-process compilation does NOT propagate org.gradle.jvmargs --add-opens to the actual compiler,
+// so lombok silently no-ops. Fork the compiler for compileJava and pass the opens as JVM args.
+afterEvaluate {
+    tasks.named('compileJava').configure {
+        options.fork = true
+        options.forkOptions.jvmArgs = [
+            '--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
+            '--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
+            '--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
+            '--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
+            '--add-opens=jdk.compiler/com.sun.tools.javac.jvm=ALL-UNNAMED',
+            '--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
+            '--add-opens=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED',
+            '--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
+            '--add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED',
+            '--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
+            '--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED'
+        ]
+    }
 }

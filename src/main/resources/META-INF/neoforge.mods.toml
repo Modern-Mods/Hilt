@@ -1,27 +1,30 @@
 modLoader="javafml"
 loaderVersion="${loader_range}"
-issueTrackerURL="https://github.com/ModernMods/Hilt/issues"
-logoFile="Hilt.png"
+issueTrackerURL="https://github.com/SlimeKnights/Mantle/issues"
+logoFile="Mantle.png"
 license="MIT"
 
-[[mods]]
-    modId="hilt"
-    version="${version}"
-    displayName="Hilt"
-    authors="Modern Mods"
-    description='''
-Shared code for Modern Mods and other NeoForge mods.
-    '''
-    displayURL="https://github.com/ModernMods/Hilt"
+[[mixins]]
+    config="mantle.mixins.json"
 
-[[dependencies.hilt]]
+[[mods]]
+    modId="mantle"
+    version="${version}"
+    displayName="Mantle"
+    authors="Slime Knights"
+    description='''
+Shared code for Slime Knights mods and others.
+    '''
+    displayURL="https://minecraft.curseforge.com/projects/mantle"
+
+[[dependencies.mantle]]
     modId="neoforge"
     type="required"
     versionRange="${neo_range}"
     ordering="NONE"
     side="BOTH"
 
-[[dependencies.hilt]]
+[[dependencies.mantle]]
     modId="minecraft"
     type="required"
     versionRange="${minecraft_range}"
