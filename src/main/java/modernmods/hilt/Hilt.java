@@ -273,6 +273,9 @@ public class Hilt {
    * @return  Translation key
    */
   public static MutableComponent makeComponent(String base, String name, Object... args) {
-    return Component.translatable(makeDescriptionId(base, name), args);
+    return Component.translatable(makeDescriptionId(base, name), java.util.Arrays.stream(args)
+      .map(arg -> arg instanceof Component || arg instanceof Number || arg instanceof Boolean || arg instanceof String
+        ? arg : String.valueOf(arg))
+      .toArray());
   }
 }

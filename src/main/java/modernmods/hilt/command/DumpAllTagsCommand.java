@@ -65,7 +65,7 @@ public class DumpAllTagsCommand {
     TagSource<?> registry = TagSourceArgument.get(context);
     int result = runForFolder(context, registry, output);
     // print result
-    context.getSource().sendSuccess(() -> Component.translatable("command.hilt.dump_all_tags.type_success", registry.key().location(), GeneratePackHelper.getOutputComponent(output)), true);
+    context.getSource().sendSuccess(() -> Component.translatable("command.hilt.dump_all_tags.type_success", registry.key().location().toString(), GeneratePackHelper.getOutputComponent(output)), true);
     return result;
   }
 
