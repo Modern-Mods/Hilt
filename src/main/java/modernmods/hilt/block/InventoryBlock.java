@@ -102,7 +102,7 @@ public abstract class InventoryBlock extends Block implements EntityBlock {
     if (state.getBlock() != newState.getBlock()) {
       BlockEntity te = worldIn.getBlockEntity(pos);
       if (te != null) {
-        IItemHandler inventory = worldIn.getCapability(Capabilities.ItemHandler.BLOCK, pos, null);
+        IItemHandler inventory = worldIn.getCapability(Capabilities.ItemHandler.BLOCK, pos, state, te, null);
         if (inventory != null) {
           dropInventoryItems(state, worldIn, pos, inventory);
         }
